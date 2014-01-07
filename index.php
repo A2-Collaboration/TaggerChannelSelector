@@ -326,14 +326,19 @@ function write_input_patterns() {
 		for($pattern=0; $pattern<2; ++$pattern) {
 			for($instance=0; $instance<$instances; ++$instance) {
 
-				$data = $Bits[$modul][$pattern][$instance] & 0x00000000ffffffff;
-				$addr = calc_address_1( $modul, $pattern, $instance, 0);
-				writeReg( $addr, $data );
+				$str = sprintf("%064b",$Bits[$modul][$pattern][$instance]);
 
-				$data = $Bits[$modul][$pattern][$instance] & 0xffffffff00000000;
-				$data >>= 32;
+				$data = substr($str, 31, 32);
+				$data2 = base_convert($data, 2, 10);
+				$data2 += 0;
+				$addr = calc_address_1( $modul, $pattern, $instance, 0);
+				writeReg( $addr, $data2 );
+
+				$data = substr($str, 0, 32);
+				$data2 = base_convert($data, 2, 10);
+				$data2 += 0;
 				$addr = calc_address_1( $modul, $pattern, $instance, 1);
-				writeReg( $addr, $data );
+				writeReg( $addr, $data2 );
 			}
 
 		}
