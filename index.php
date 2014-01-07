@@ -7,11 +7,12 @@
 .error { color: red; }
 .share { color: green; font-style: italic;}
 div.info { font-size: small; position: absolute; top: 0px; right: 0px;}
+form { background-color: #f0f0f0; }
 	</style>
 </head>
 <body>
 <h1>A2 Tagger Channel Selector</h1>
-<div class="info">V0.1, Oliver Steffen <<a href="mailto:steffen@kph.uni-mainz.de">steffen@kph.uni-mainz.de</a>></div>
+<div class="info">V0.2, Oliver Steffen <<a href="mailto:steffen@kph.uni-mainz.de">steffen@kph.uni-mainz.de</a>></div>
 <?php
 error_reporting(E_STRICT);
 
@@ -27,24 +28,40 @@ if (!$con) {
 mysql_select_db($MYSQL_DB, $con) || die (mysql_error());
 
 
+$Set=$_GET['Set'];
+
+set_selection_box();
+new_set_box();
+
+
+$result=mysql_query("SELECT name FROM setname WHERE id=\"$Set\";");
+
+if( !( $row = mysql_fetch_array($result) )) {
+	echo "</body></html>";
+	die();
+}
+
+$SetName = $row['name'];
+
+echo "<h2>Set: $SetName</h2>";
+
 //Delete row in table inputpattern
 if (!empty($_GET['DeleteID']) ) {
-	mysql_query("DELETE FROM `config` WHERE `id`='".$_GET['DeleteID']."'");
-	header("Location: ".$phpURL);
+	mysql_query("DELETE FROM `config` WHERE `id`='".$_GET['DeleteID']." AND set=\"$Set\"'");
+	header("Location: ".$phpURL."?Set=$Set");
 }
 
 //Insert row in table inputpattern
 if (!empty($_GET['InsertButton']) ) {
-	mysql_query("INSERT INTO `config` (`output`, `input`) VALUES (".$_GET['OutputCh'].", ".$_GET['SelectedCh'].")") || die (mysql_error());
-	header("Location: ".$phpURL."?LastOutputCh=".$_GET['OutputCh']);
+	mysql_query("INSERT INTO `config` (`output`, `input`, `set`) VALUES (".$_GET['OutputCh'].", ".$_GET['SelectedCh'].", $Set);") || die (mysql_error());
+	header("Location: ".$phpURL."?Set=$Set&LastOutputCh=".$_GET['OutputCh']);
 }
 
 //Insert row in table inputpattern
 if (!empty($_GET['ClearButton']) ) {
-	mysql_query("TRUNCATE config;") || die (mysql_error());
-	header("Location: ".$phpURL);
+	mysql_query("DELETE FROM config WHERE `set`=\"$Set\";") || die (mysql_error());
+	header("Location: ".$phpURL."?Set=$Set");
 }
-
 ?>
 
 <table>
@@ -73,16 +90,16 @@ function getClass( $status ) {
 	}
 }
 
-$result = mysql_query("SELECT distinct output FROM config ORDER BY output;");
+$result = mysql_query("SELECT distinct output FROM config WHERE `set`=\"$Set\" ORDER BY output;");
 
 $ActualOutputCh = -1;
 while($row = mysql_fetch_array($result)) {
 	$output = $row['output'];
 	echo "<tr><td>$output</td><td>";
-	$r2 = mysql_query("select config.id,config.input,channel.name,config.status from config JOIN channel ON config.input=channel.input WHERE config.output=$output ORDER BY config.input;");
+	$r2 = mysql_query("select config.id,config.input,channel.name,config.status from config JOIN channel ON config.input=channel.input WHERE (config.output=$output AND config.set=\"$Set\") ORDER BY config.input;");
 
 	while($row2 = mysql_fetch_array($r2)) {
-		echo "<a class=\"".getClass($row2['status'])."\" href=\"".$phpURL."?DeleteID=".$row2['id']."\">".$row2['name']."</a> ";
+		echo "<a class=\"".getClass($row2['status'])."\" href=\"".$phpURL."?Set=$Set&DeleteID=".$row2['id']."\">".$row2['name']."</a> ";
 	}
 	mysql_free_result($r2);
 	echo "</td></tr>";
@@ -105,17 +122,12 @@ mysql_free_result($result);
 <form method="get">
 <select name="OutputCh">
 <?php
-for ($i=0; $i<33; $i++) {
+for ($i=0; $i<32; $i++) {
 	echo "<option value=\"".$i."\" ";
 	if ($_GET['LastOutputCh'] == $i) {
 		echo " selected ";
 	}
-
-	if ($i == 32) {
-		echo ">NIM Out client card</option>";
-	}else {
-		echo ">Output Ch ".$i."</option>";
-	}
+	echo ">Output Ch ".$i."</option>";
 }
 ?>
 </select>
@@ -132,17 +144,20 @@ mysql_free_result($result2);
 
 </select>
 <input name="InsertButton" type="submit" value="Insert">
+<input name="Set" type="hidden" value="<?php echo $Set; ?>">
 </form>
 
 <form method="get">
 <input name="ClearButton" type="submit" value="Clear">
 <input name="WriteButton" type="submit" value="Write to VUPROMs">
+<input name="Set" type="hidden" value="<?php echo $Set; ?>">
 </form>
 
 <form method="get">
 Set Mode of NIM-Out:
 <input name="SetDAQMode" type="submit" value="DAQ Mode">
 <input name="SetNIMOutMode" type="submit" value="NIM-Out Mode">
+<input name="Set" type="hidden" value="<?php echo $Set; ?>">
 </form>
 
 
@@ -172,7 +187,7 @@ for($output=0;$output<$outputs;++$output) {
 }
 
 // Generate whishlists
-$result = mysql_query("SELECT modul,pattern,bit,output FROM channel JOIN config ON channel.input=config.input;");
+$result = mysql_query("SELECT modul,pattern,bit,output FROM channel JOIN config ON channel.input=config.input WHERE `set`=\"$Set\";");
 while($row = mysql_fetch_array($result)) {
 	$m = $row['modul'];
 	$p = $row['pattern'];
@@ -373,4 +388,65 @@ function write_moeller_patterns() {
 	}
 
 	echo "</pre>";
+}
+
+
+function set_selection_box() {
+	
+	global $phpURL, $Set;
+	$DeleteSet=$_GET["DeleteSet"];
+	if(!empty($DeleteSet) ) {
+		$id = $_GET["Set"];
+		mysql_query("DELETE FROM config WHERE `set`=\"$id\";") || die(mysql_error());
+		mysql_query("DELETE FROM setname WHERE id=\"$id\";") || die(mysql_error());
+		header("Location: ".$phpURL);
+	}
+	echo "Set: $Set";
+	echo "<form method=\"get\">";
+	echo "<select name=\"Set\">";
+
+	$result = mysql_query("SELECT id,name FROM setname ORDER BY LENGTH(name), name;");
+	while($row = mysql_fetch_array($result)) {
+		echo "<option value=\"".$row['id']."\"";
+		if( $Set == $row['id'] ) echo " selected ";
+		echo ">";
+		echo $row['name'];
+		echo "</option>\n";
+	}
+	mysql_free_result($result);
+	echo "</select><input type=\"submit\" value=\"Use Set\"><input type=\"submit\" value=\"Delete Set\" name=\"DeleteSet\"></form>";
+}
+
+function new_set_box() {
+	global $phpURL;
+	$NewSet=$_GET["NewSet"];
+	if(!empty($NewSet) ) {
+		if( mysql_query("INSERT INTO setname (name) VALUES (\"$NewSet\");") ) {
+			echo "New set created: $NewSet\n";
+			header("Location: ".$phpURL);
+		} else {
+			echo "Could not add set $NewSet\n";
+		}
+	}
+	echo "<form method=\"get\">";
+	echo "<input type=\"text\" maxlength=32 name=\"NewSet\">";
+	echo "<input type=\"submit\" value=\"New Set\">";
+	echo "</form>";
+}
+
+function delete_set_box() {
+	global $phpURL;
+	$DeleteSet=$_GET["DeleteSet"];
+	if(!empty($DeleteSet) ) {
+		if( mysql_query("INSERT INTO setname (name) VALUES (\"$NewSet\");") ) {
+			echo "New set created: $NewSet\n";
+			header("Location: ".$phpURL);
+		} else {
+			echo "Could not add set $NewSet\n";
+		}
+	}
+
+	echo "<form method=\"get\">";
+	echo "<input type=\"submit\" value=\"Delete this Set\" name=\"DeleteSet\">";
+	echo "</form>";
 }
