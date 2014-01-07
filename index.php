@@ -256,10 +256,10 @@ if (!empty($_GET['WriteButton']) ) {
 
 if (!empty($_GET['SetDAQMode']) ) {
 	echo "Setting NIM-Out to DAQ Mode\n";
-	writeReg( 0x11002210, 0 );
+	writeReg( 0x11002510, 0 );
 } else if(!empty($_GET['SetNIMOutMode']) ) {
 	echo "Setting NIM-Out to NIM-Out Mode\n";
-	writeReg( 0x11002210, 1 );
+	writeReg( 0x11002510, 1 );
 }
 
 //---
