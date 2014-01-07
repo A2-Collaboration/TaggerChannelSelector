@@ -18,8 +18,8 @@ error_reporting(E_STRICT);
 $phpURL = $_SERVER['PHP_SELF'];
 
 $MYSQL_HOST="localhost";
-$MYSQL_USER="a2service";
-$MYSQL_PASS="a2";
+$MYSQL_USER="tagchsel";
+$MYSQL_PASS="UedxCsbQWCLLYz3E";
 $MYSQL_DB="tagchsel";
 
 $con = mysql_connect($MYSQL_HOST, $MYSQL_USER, $MYSQL_PASS);
@@ -261,7 +261,7 @@ echo "</table>";
 </body>
 </html>
 
-<?
+<?php
 
 // ======= Remote VME Access stuff ========
 
