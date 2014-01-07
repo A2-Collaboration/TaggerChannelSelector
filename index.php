@@ -15,12 +15,10 @@ div.info { font-size: small; position: absolute; top: 0px; right: 0px;}
 <?php
 error_reporting(E_STRICT);
 
-$phpURL = $_SERVER['PHP_SELF'];
+// Load configuration
+require_once("conf.inc");
 
-$MYSQL_HOST="localhost";
-$MYSQL_USER="tagchsel";
-$MYSQL_PASS="UedxCsbQWCLLYz3E";
-$MYSQL_DB="tagchsel";
+$phpURL = $_SERVER['PHP_SELF'];
 
 $con = mysql_connect($MYSQL_HOST, $MYSQL_USER, $MYSQL_PASS);
 if (!$con) {
