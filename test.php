@@ -137,6 +137,12 @@ while($row2 = mysql_fetch_array($result2)) {
 <input name="WriteButton" type="submit" value="Write to VUPROMs">
 </form>
 
+<form method="get">
+Set Mode of NIM-Out:
+<input name="SetDAQMode" type="submit" value="DAQ Mode">
+<input name="SetNIMOutMode" type="submit" value="NIM-Out Mode">
+</form>
+
 
 Generating patterns<hr><pre>
 <?php
@@ -226,6 +232,14 @@ if (!empty($_GET['WriteButton']) ) {
 	program();
 }
 
+if (!empty($_GET['SetDAQMode']) ) {
+	echo "Setting NIM-Out to DAQ Mode\n";
+	writeReg( 0x11002210, 0 );
+} else if(!empty($_GET['SetNIMOutMode']) ) {
+	echo "Setting NIM-Out to NIM-Out Mode\n";
+	writeReg( 0x11002210, 1 );
+}
+
 //---
 echo "</pre><hr>";
 $instance=0;
@@ -289,7 +303,7 @@ function program() {
  */
 function calc_address_1( $module, $pattern, $instance, $half ) {
 	$output = $pattern * 8 + $instance;
-	return ($module+1) * 0x01000000  + 4 * $half + (1<<11) + ($output << 4);
+	return ($module+1) * 0x01000000  + 4 * $half + (1<<11)+ 0x2000 + ($output << 4);
 }
 
 function write_input_patterns() {
