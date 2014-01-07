@@ -121,7 +121,7 @@ for ($i=0; $i<33; $i++) {
 </select>
 <select name="SelectedCh">
 <?php
-$result2 = mysql_query("SELECT input, name FROM channel ORDER BY name;");
+$result2 = mysql_query("SELECT input, name FROM channel ORDER BY LENGTH(name), name;");
 while($row2 = mysql_fetch_array($result2)) {
 	echo "<option value=\"".$row2['input']."\">";
 	echo $row2['name'];
@@ -221,17 +221,16 @@ for($instance=0;$instance<$instances;++$instance) {
 
 }
 
-//Insert row in table inputpattern
+// Write to VUPROMs of pressed
 if (!empty($_GET['WriteButton']) ) {
 	program();
-	//header("Location: ".$phpURL);
 }
 
 //---
 echo "</pre><hr>";
 $instance=0;
 
-echo "<table><tr><th>Inst</th><th>InstOutp</th><th>Pattern</th><th>Output</th><</tr>";
+echo "<table><tr><th>Inst</th><th>InstOutp</th><th>Pattern</th><th>Output</th></tr>";
 for($instance=0;$instance<$instances;++$instance)
 	for($output=0;$output<4;++$output)
 		printf('<tr><td>%d</td><td>%d</td><td>%08b</td><td>%d</td></tr>',$instance,$output,$Bits2[$instance][$output],$instance+$output*8);
