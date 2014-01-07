@@ -84,8 +84,10 @@ while($row = mysql_fetch_array($result)) {
 	while($row2 = mysql_fetch_array($r2)) {
 		echo "<a class=\"".getClass($row2['status'])."\" href=\"".$phpURL."?DeleteID=".$row2['id']."\">".$row2['name']."</a> ";
 	}
+	mysql_free_result($r2);
 	echo "</td></tr>";
 }
+mysql_free_result($result);
 ?>
 
 </table>
@@ -125,7 +127,9 @@ while($row2 = mysql_fetch_array($result2)) {
 	echo $row2['name'];
 	echo "</option>\n";
 }
+mysql_free_result($result2);
 ?>
+
 </select>
 <input name="InsertButton" type="submit" value="Insert">
 </form>
@@ -148,12 +152,13 @@ Generating patterns<hr><pre>
 $modules=4;
 $patterns=2;
 $instances=8;
+$outputs=32;
 
 for($modul=0;$modul<$modules;++$modul)
 	for($pattern=0;$pattern<$patterns;++$pattern) {
 
 		// Initialize per output whishlist for input patterns
-		for($o=0;$o<32;++$o)
+		for($o=0;$o<$outputs;++$o)
 			$whishlist[$o][$modul][$pattern]=0;
 
 		// Initialize final bit patterns
@@ -162,11 +167,11 @@ for($modul=0;$modul<$modules;++$modul)
 	}
 
 // Initialize final per output pattern selectors (wich modul/pattern to use)
-for($instance=0;$instance<$instances;++$instance) {
-	for($instout=0;$instout<4;++$instout)
-		$Bits2[$instance][$instout]=0;
+for($output=0;$output<$outputs;++$output) {
+		$Bits2[$output]=0;
 }
 
+// Generate whishlists
 $result = mysql_query("SELECT modul,pattern,bit,output FROM channel JOIN config ON channel.input=config.input;");
 while($row = mysql_fetch_array($result)) {
 	$m = $row['modul'];
@@ -176,54 +181,58 @@ while($row = mysql_fetch_array($result)) {
 
 	$whishlist[$o][$m][$p] |= ( 1 << $b );	// set bit in whishlist
 }
+mysql_free_result($result);
 
-
-for($instance=0;$instance<$instances;++$instance) {
-	echo "\nInstance $instance\n";
-	$outputs = array( $instance, $instance +8, $instance +16, $instance +24);
-
+// try to fulfill wishes...
+// useage memory
+for($instance=0;$instance<$instances;++$instance)
 	for($modul=0;$modul<$modules;++$modul)
 		for($pattern=0;$pattern<$patterns;++$pattern)
-			$PatUse[$modul][$pattern]=-1;
+			$PatUse[$modul][$pattern][$instance]=-1;
 
-	echo "Outputs:\n";
-	print_r($outputs);
-	$zbits = 0;
-	//---
-	for($instout=0;$instout<4;++$instout) {
-		$o = $outputs[$instout];
+for($output=0;$output<$outputs;++$output) {
 
-		for($modul=0;$modul<$modules;++$modul)
-			for($pattern=0;$pattern<$patterns;++$pattern) {
-				if( $whishlist[$o][$modul][$pattern] != 0 ) {
-				echo "Output $o: (Modul $modul, Pattern $pattern) ";
-					if ($PatUse[$modul][$pattern] == -1 ) {
-						echo "is not in use. Grabbing for us\n";
+	for($modul=0;$modul<$modules;++$modul)
+		for($pattern=0;$pattern<$patterns;++$pattern) {
+
+			if( $whishlist[$output][$modul][$pattern] != 0 ) {
+
+				$found=false;
+				$instance=0;
+
+				echo "Output $output: (Modul $modul, Pattern $pattern) Trying (";
+				while( !$found && $instance < $instances ) {
+					echo "$instance, ";
+					if ($PatUse[$modul][$pattern][$instance] == -1 ) {
+						echo ") $instance is not in use. Grabbing for us\n";
 						// clain the pattern for this output
-						$PatUse[$modul][$pattern] = $instout;
-						$Bits2[$instance][$instout] |= ( 1 << ($modul*2 + $pattern));
-						$Bits[$modul][$pattern][$instance] = $whishlist[$o][$modul][$pattern];
-						mysql_query("UPDATE config JOIN channel ON channel.input=config.input SET config.status = 1 WHERE (modul=$modul AND pattern=$pattern AND output=$o);") || die (mysql_error());
+						$PatUse[$modul][$pattern][$instance] = $output;
+					    $Bits2[$output] |= ( 1 << ($modul*16 + $pattern*8 + $instance));
+						$Bits[$modul][$pattern][$instance] = $whishlist[$output][$modul][$pattern];
+						mysql_query("UPDATE config JOIN channel ON channel.input=config.input SET config.status = 1 WHERE (modul=$modul AND pattern=$pattern AND output=$output);") || die (mysql_error());
+						$found=true;
 					} else {
-						echo "is in use by InstOut ".$PatUse[$modul][$pattern]."\n";
 						// pattern already in use
 						// see if we have the same pattern. then we can use it too
-						if( $whishlist[$o][$modul][$pattern] == $Bits[$modul][$pattern][$instance] ) {
-							echo "  We have the same pattern though. Using it too!\n";
-							$Bits2[$instance][$instout] |= ( 1 << ($modul*2 + $pattern));
-							mysql_query("UPDATE config JOIN channel ON channel.input=config.input SET config.status = 3 WHERE (modul=$modul AND pattern=$pattern AND output=$o);") || die(mysql_error());
-						} else {
-							// Can't use it too. Mark inputs as invalid
-							echo "  ...and we have a different pattern :(\n";
-							mysql_query("UPDATE config JOIN channel ON channel.input=config.input SET config.status = 2 WHERE (modul=$modul AND pattern=$pattern AND output=$o);") || die(mysql_error());
+						if( $whishlist[$output][$modul][$pattern] == $Bits[$modul][$pattern][$instance] ) {
+						    echo ") $instance is in use by Output ".$PatUse[$modul][$pattern][$instance]." We have the same pattern, sharing.\n";
+					    	$Bits2[$output] |= ( 1 << ($modul*16 + $pattern*8 + $instance));
+							mysql_query("UPDATE config JOIN channel ON channel.input=config.input SET config.status = 3 WHERE (modul=$modul AND pattern=$pattern AND output=$output);") || die(mysql_error());
+							$found = true;
 						}
 					}
-
+					++$instance;
 				}
-			}
-	}
 
+				if( !$found ) {
+					echo ") Could not find a free instance of (Module $modul, Pattern $pattern) for output $output.\n";
+					mysql_query("UPDATE config JOIN channel ON channel.input=config.input SET config.status = 2 WHERE (modul=$modul AND pattern=$pattern AND output=$o);") || die(mysql_error());
+				}
+
+		}
+	}
 }
+
 
 // Write to VUPROMs of pressed
 if (!empty($_GET['WriteButton']) ) {
@@ -240,16 +249,14 @@ if (!empty($_GET['SetDAQMode']) ) {
 
 //---
 echo "</pre><hr>";
-$instance=0;
 
-echo "<table><tr><th>Inst</th><th>InstOutp</th><th>Pattern</th><th>Output</th></tr>";
-for($instance=0;$instance<$instances;++$instance)
-	for($output=0;$output<4;++$output)
-		printf('<tr><td>%d</td><td>%d</td><td>%08b</td><td>%d</td></tr>',$instance,$output,$Bits2[$instance][$output],$instance+$output*8);
+echo "<table><tr><th>Output</th><th>Pattern</th></tr>";
+for($output=0;$output<$outputs;++$output)
+	printf('<tr><td>%d</td><td>%064b</td></tr>',$output,$Bits2[$output]);
 echo "</table>";
 
 echo "<table><tr><th>Mod</th><th>Pat</th><th>Inst</th><th>Pattern</th></tr>";
-for($modul=0;$modul<4;++$modul)
+for($modul=0;$modul<$modules;++$modul)
 	for($pattern=0;$pattern<2;++$pattern)
 		for($instance=0;$instance<$instances;++$instance)
 			printf('<tr><td>%d</td><td>%d</td><td>%d</td><td>%064b</td></tr>',$modul,$pattern,$instance,$Bits[$modul][$pattern][$instance]);
@@ -336,30 +343,29 @@ function write_input_patterns() {
 
 // ======= Moeller ========
 
-function calc_address_2 ( $instance ) {
-	return 0x11002100 + $instance * 0x10;
+function calc_address_2 ( $output, $half ) {
+	return 0x11002100 + ($output*2+$half)*0x10;
 }
 
 function write_moeller_patterns() {
-	global $instances;
+	global $outputs;
 	global $Bits2;
 
 	echo "<pre name=\"prog_moeller\">";
 	echo "Programming output ORs to VUPROM (Moeller)...\n";
 	printf("Firmware VUPROM x11: 0x%08x\n",readReg( 0x11002f00 ));
 
-	for($instance=0; $instance<$instances; ++$instance) {
-		$data =  ($Bits2[$instance][3] << (3*8))
-			   + ($Bits2[$instance][2] << (2*8))
-			   + ($Bits2[$instance][1] << (1*8))
-			   + ($Bits2[$instance][0]);
-		$addr = calc_address_2( $instance );
+	for($output=0; $output<$outputs; ++$output) {
+		$data =  $Bits2[$output] & 0x00000000ffffffff;
+		$addr = calc_address_2( $output, 0);
+		writeReg( $addr, $data );
+
+		$data =  $Bits2[$output] & 0xffffffff00000000;
+		$data >>= 32;
+		$addr = calc_address_2( $output, 1);
 		writeReg( $addr, $data );
 
 	}
 
 	echo "</pre>";
 }
-
-
-
