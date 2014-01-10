@@ -343,7 +343,7 @@ function write_input_patterns() {
 
 				$str = sprintf("%064b",$Bits[$modul][$pattern][$instance]);
 
-				$data = substr($str, 31, 32);
+				$data = substr($str, 32, 32);
 				$data2 = base_convert($data, 2, 10);
 				$data2 += 0;
 				$addr = calc_address_1( $modul, $pattern, $instance, 0);
