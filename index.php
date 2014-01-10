@@ -17,7 +17,7 @@ form { background-color: #f0f0f0; }
 error_reporting(E_STRICT);
 
 // Load configuration
-require_once("conf.inc");
+require_once("conf.inc.php");
 
 $phpURL = $_SERVER['PHP_SELF'];
 
